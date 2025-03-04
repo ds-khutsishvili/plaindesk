@@ -162,8 +162,13 @@ body {
   cursor: se-resize !important;
   padding: 0 2px 2px 0 !important;
   z-index: 100 !important;
-  opacity: 0.8 !important;
+  opacity: 0 !important; /* Скрыта по умолчанию */
   transform: scale(1.2) !important;
+  transition: opacity 0.2s ease !important;
+}
+
+.widgets-container .widget:hover .react-resizable-handle {
+  opacity: 0.8 !important; /* Показываем при наведении */
 }
 
 .widgets-container .react-resizable-handle:hover {

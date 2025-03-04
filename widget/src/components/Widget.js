@@ -14,6 +14,9 @@ const Widget = ({ id, x, y, width, height, onMove, onResize, onRemove, headerHei
   // State for the clock
   const [currentTime, setCurrentTime] = useState(new Date());
   
+  // State for settings modal
+  const [showSettings, setShowSettings] = useState(false);
+  
   // Ref для измерения содержимого
   const contentRef = useRef(null);
   
@@ -207,6 +210,12 @@ const Widget = ({ id, x, y, width, height, onMove, onResize, onRemove, headerHei
     });
   };
 
+  // Toggle settings modal
+  const toggleSettingsModal = (e) => {
+    e.stopPropagation(); // Prevent event bubbling
+    setShowSettings(!showSettings);
+  };
+
   // For standalone mode (preview)
   if (standalone) {
     return (
@@ -306,6 +315,13 @@ const Widget = ({ id, x, y, width, height, onMove, onResize, onRemove, headerHei
               ⋮⋮
             </div>
             <button 
+              className="widget-settings-btn" 
+              onClick={toggleSettingsModal}
+              title="Widget settings"
+            >
+              ⚙
+            </button>
+            <button 
               className="widget-close-btn" 
               onClick={() => onRemove(id)}
               title="Remove widget"
@@ -339,34 +355,48 @@ const Widget = ({ id, x, y, width, height, onMove, onResize, onRemove, headerHei
               </div>
             </div>
             
-            <div className="widget-settings">
-              <div className="settings-row">
-                <label>
-                  <input 
-                    type="checkbox" 
-                    checked={settings.showSeconds} 
-                    onChange={() => toggleSetting('showSeconds')}
-                  />
-                  Show seconds
-                </label>
-                <label>
-                  <input 
-                    type="checkbox" 
-                    checked={settings.showDate} 
-                    onChange={() => toggleSetting('showDate')}
-                  />
-                  Show date
-                </label>
-                <label>
-                  <input 
-                    type="checkbox" 
-                    checked={settings.use24Hour} 
-                    onChange={() => toggleSetting('use24Hour')}
-                  />
-                  24-hour format
-                </label>
+            {/* Settings modal */}
+            {showSettings && (
+              <div className="widget-settings-modal">
+                <div className="widget-settings-header">
+                  <h3>Widget Settings</h3>
+                  <button 
+                    className="widget-settings-close-btn" 
+                    onClick={toggleSettingsModal}
+                  >
+                    ✕
+                  </button>
+                </div>
+                <div className="widget-settings">
+                  <div className="settings-row">
+                    <label>
+                      <input 
+                        type="checkbox" 
+                        checked={settings.showSeconds} 
+                        onChange={() => toggleSetting('showSeconds')}
+                      />
+                      Show seconds
+                    </label>
+                    <label>
+                      <input 
+                        type="checkbox" 
+                        checked={settings.showDate} 
+                        onChange={() => toggleSetting('showDate')}
+                      />
+                      Show date
+                    </label>
+                    <label>
+                      <input 
+                        type="checkbox" 
+                        checked={settings.use24Hour} 
+                        onChange={() => toggleSetting('use24Hour')}
+                      />
+                      24-hour format
+                    </label>
+                  </div>
+                </div>
               </div>
-            </div>
+            )}
           </div>
           <div className="react-resizable-handle react-resizable-handle-se" />
         </ResizableBox>

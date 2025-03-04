@@ -110,6 +110,59 @@ body {
   opacity: 1;
 }
 
+/* Widget controls */
+.widget-controls {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  display: flex;
+  gap: 8px;
+  opacity: 0;
+  transition: opacity 0.2s ease;
+  z-index: 10;
+}
+
+.widget:hover .widget-controls {
+  opacity: 1;
+}
+
+.widget-move-handle {
+  cursor: move;
+  font-size: 16px;
+  color: #4a6cf7;
+  background-color: rgba(255, 255, 255, 0.9);
+  border-radius: 4px;
+  padding: 2px 6px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+.widget-close-btn, .widget-settings-btn {
+  background-color: rgba(255, 255, 255, 0.9);
+  border: none;
+  border-radius: 4px;
+  width: 24px;
+  height: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  font-size: 14px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  transition: all 0.2s ease;
+}
+
+.widget-close-btn {
+  color: #dc3545;
+}
+
+.widget-settings-btn {
+  color: #4a6cf7;
+}
+
+.widget-close-btn:hover, .widget-settings-btn:hover {
+  transform: scale(1.1);
+}
+
 /* Clock styles */
 .clock-display {
   display: flex;
@@ -142,6 +195,50 @@ body {
   padding: 0.75rem 1rem;
   border-top: 1px solid #f0f0f0;
   background-color: #f8f9fa;
+}
+
+/* Settings modal */
+.widget-settings-modal {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  background-color: white;
+  border-radius: 8px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
+  width: 90%;
+  max-width: 300px;
+  z-index: 1000;
+  overflow: hidden;
+}
+
+.widget-settings-header {
+  background-color: white;
+  color: #333;
+  padding: 20px 25px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.widget-settings-header h3 {
+  margin: 10px 0 0 10px;
+  font-size: 16px;
+  font-weight: 500;
+}
+
+.widget-settings-close-btn {
+  background: none;
+  border: none;
+  color: white;
+  cursor: pointer;
+  font-size: 16px;
+  opacity: 0.7;
+  transition: opacity 0.2s ease;
+}
+
+.widget-settings-close-btn:hover {
+  opacity: 1;
 }
 
 .settings-row {
@@ -191,6 +288,12 @@ body {
   cursor: se-resize;
   padding: 0 3px 3px 0;
   z-index: 100;
+  opacity: 0;
+  transition: opacity 0.2s ease;
+}
+
+.widget:hover .react-resizable-handle {
+  opacity: 1;
 }
 
 .custom-resize-handle {
@@ -201,4 +304,10 @@ body {
   height: 20px;
   cursor: se-resize;
   z-index: 100;
+  opacity: 0;
+  transition: opacity 0.2s ease;
+}
+
+.widget:hover .custom-resize-handle {
+  opacity: 1;
 } 
