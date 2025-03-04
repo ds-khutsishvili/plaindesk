@@ -1,0 +1,379 @@
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  font-family: 'Roboto', sans-serif;
+  background-color: #ffffff;
+  color: #333;
+  overflow: hidden;
+}
+
+.app {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  width: 100vw;
+  overflow: hidden;
+}
+
+.header {
+  background-color: #4a6cf7;
+  color: white;
+  padding: 1rem 2rem;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+}
+
+.header-content {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.header-title h1 {
+  font-weight: 500;
+  margin-bottom: 0.5rem;
+}
+
+.header-title p {
+  font-weight: 300;
+  opacity: 0.9;
+}
+
+.header-actions {
+  display: flex;
+  gap: 1rem;
+}
+
+.add-widget-btn {
+  background-color: white;
+  color: #4a6cf7;
+  border: none;
+  border-radius: 4px;
+  padding: 0.5rem 1rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+}
+
+.add-widget-btn:hover {
+  background-color: #f8f9fa;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+}
+
+.add-widget-btn:active {
+  transform: translateY(0);
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+}
+
+.board {
+  flex: 1;
+  padding: 0;
+  position: relative;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  border: none;
+  background-color: #ffffff;
+}
+
+.grid {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  width: 100%;
+  height: 100%;
+  background-color: #ffffff;
+  background-image:
+    linear-gradient(to right, #ebebeb 1px, transparent 1px),
+    linear-gradient(to bottom, #ebebeb 1px, transparent 1px);
+  background-size: 20px 20px;
+  border-radius: 0;
+  overflow: hidden;
+  box-shadow: none;
+  border: none;
+}
+
+.grid-cell {
+  background-color: white;
+  border-radius: 2px;
+}
+
+.widgets-container {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  padding: 16px;
+}
+
+.widgets-container > * {
+  pointer-events: auto;
+}
+
+/* Улучшаем стили для виджетов */
+.widgets-container .widget {
+  background-color: #ffffff !important;
+  border-radius: 8px !important;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1) !important;
+  overflow: hidden !important;
+  position: absolute !important;
+  border: none !important;
+}
+
+.widgets-container .widget-content {
+  background-color: white !important;
+  height: 100% !important;
+  display: flex !important;
+  flex-direction: column !important;
+  cursor: default !important;
+  padding: 12px !important;
+}
+
+/* Увеличиваем z-index при перемещении или изменении размера */
+.widgets-container .widget.resizing,
+.widgets-container .dragging .widget {
+  z-index: 10 !important; /* Повышенный z-index при взаимодействии */
+}
+
+/* Предотвращаем перекрытие событий */
+.widgets-container .react-resizable-handle {
+  pointer-events: auto !important; /* Гарантируем, что события попадают на ручку */
+  position: absolute !important;
+  bottom: 0 !important;
+  right: 0 !important;
+  width: 16px !important;
+  height: 16px !important;
+  background-image: url('data:image/svg+xml;charset=utf-8,%3Csvg xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22 width%3D%2212%22 height%3D%2212%22%3E%3Cpath fill%3D%22%234a6cf7%22 d%3D%22M12 12H0V9h9V0h3z%22%2F%3E%3C%2Fsvg%3E') !important;
+  background-position: bottom right !important;
+  background-repeat: no-repeat !important;
+  background-origin: content-box !important;
+  box-sizing: border-box !important;
+  cursor: se-resize !important;
+  padding: 0 2px 2px 0 !important;
+  z-index: 100 !important;
+  opacity: 0.8 !important;
+  transform: scale(1.2) !important;
+}
+
+.widgets-container .react-resizable-handle:hover {
+  opacity: 1 !important;
+  transform: scale(1.3) !important;
+}
+
+/* Удаляем старый заголовок */
+.widgets-container .widget-header {
+  display: none !important;
+}
+
+/* Иконки управления виджетом */
+.widget-controls {
+  position: absolute !important;
+  top: 4px !important;
+  right: 4px !important;
+  display: flex !important;
+  gap: 6px !important;
+  opacity: 0 !important; /* Скрыты по умолчанию */
+  transition: opacity 0.2s ease !important;
+  z-index: 100 !important; /* Увеличиваем z-index */
+}
+
+.widget:hover .widget-controls {
+  opacity: 1 !important; /* Показываем при наведении */
+}
+
+/* Иконка закрытия */
+.widget-close-btn {
+  width: 22px !important;
+  height: 22px !important;
+  border-radius: 50% !important;
+  background-color: rgba(255, 255, 255, 0.95) !important;
+  border: none !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  cursor: pointer !important;
+  font-size: 14px !important;
+  color: #555 !important;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1) !important;
+  transition: all 0.2s ease !important;
+}
+
+.widget-close-btn:hover {
+  background-color: #ff5252 !important;
+  color: white !important;
+  transform: scale(1.1) !important;
+}
+
+/* Иконка перемещения */
+.widget-move-handle {
+  width: 22px !important;
+  height: 22px !important;
+  border-radius: 50% !important;
+  background-color: rgba(255, 255, 255, 0.95) !important;
+  border: none !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  cursor: move !important;
+  font-size: 14px !important;
+  color: #555 !important;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1) !important;
+  transition: all 0.2s ease !important;
+}
+
+.widget-move-handle:hover {
+  background-color: #4a6cf7 !important;
+  color: white !important;
+  transform: scale(1.1) !important;
+}
+
+/* Улучшаем стили для часов */
+.widgets-container .clock-display {
+  display: flex !important;
+  justify-content: center !important;
+  align-items: center !important;
+  flex-direction: column !important;
+  margin: 0 !important;
+  flex: 1 !important;
+  padding: 8px !important;
+}
+
+.widgets-container .time {
+  font-size: 2.2rem !important;
+  font-weight: 500 !important;
+  color: #333 !important;
+  background-color: #f8f9fa !important;
+  padding: 0.5rem 1rem !important;
+  border-radius: 8px !important;
+  box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.07) !important;
+  margin-bottom: 8px !important;
+  text-align: center !important;
+  min-width: 80% !important;
+  letter-spacing: 0.5px !important;
+}
+
+.widgets-container .date {
+  font-size: 1rem !important;
+  color: #555 !important;
+  margin-top: 4px !important;
+  text-align: center !important;
+  background-color: #f0f0f0 !important;
+  padding: 4px 8px !important;
+  border-radius: 4px !important;
+  letter-spacing: 0.5px !important;
+}
+
+.widget-placeholder {
+  background-color: rgba(74, 108, 247, 0.1);
+  border: 2px dashed #4a6cf7;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #4a6cf7;
+  font-weight: 500;
+}
+
+/* Стили для настроек виджета */
+.widget-settings {
+  margin-top: 8px !important;
+  border-top: 1px solid #f0f0f0 !important;
+  padding-top: 8px !important;
+  background-color: #fafafa !important;
+  border-radius: 6px !important;
+  padding: 8px !important;
+}
+
+.settings-row {
+  display: flex !important;
+  flex-direction: column !important;
+  gap: 8px !important;
+}
+
+.settings-row label {
+  display: flex !important;
+  align-items: center !important;
+  font-size: 0.85rem !important;
+  color: #555 !important;
+  cursor: pointer !important;
+  transition: color 0.2s ease !important;
+  padding: 2px 0 !important;
+}
+
+.settings-row label:hover {
+  color: #333 !important;
+}
+
+.settings-row input[type="checkbox"] {
+  margin-right: 8px !important;
+  cursor: pointer !important;
+  width: 16px !important;
+  height: 16px !important;
+}
+
+/* Styles for widget info section */
+.widget-info {
+  margin-top: 8px !important;
+  border-top: 1px solid #f0f0f0 !important;
+  padding-top: 8px !important;
+  font-size: 0.8rem !important;
+  color: #666 !important;
+  text-align: center !important;
+}
+
+.widget-coordinates, .widget-dimensions {
+  margin-bottom: 4px !important;
+  background-color: #f8f9fa !important;
+  padding: 4px 8px !important;
+  border-radius: 4px !important;
+  display: inline-block !important;
+  margin: 2px !important;
+  font-family: monospace !important;
+  letter-spacing: 0.5px !important;
+}
+
+.floating-action-button {
+  position: fixed !important;
+  bottom: 24px !important;
+  right: 24px !important;
+  width: 60px !important;
+  height: 60px !important;
+  border-radius: 50% !important;
+  background-color: #4a6cf7 !important;
+  color: white !important;
+  border: none !important;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2) !important;
+  cursor: pointer !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  z-index: 1000 !important;
+  font-size: 28px !important;
+  transition: all 0.2s ease !important;
+}
+
+.floating-action-button:hover {
+  background-color: #3a5ce5 !important;
+  transform: scale(1.05) !important;
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.25) !important;
+}
+
+.floating-action-button:active {
+  transform: scale(0.95) !important;
+}
+
+.add-icon {
+  font-style: normal !important;
+  font-weight: bold !important;
+} 

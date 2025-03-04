@@ -1,0 +1,14 @@
+{
+  "name": "widget-board-app",
+  "version": "1.0.0",
+  "description": "A widget board application with Webpack Module Federation",
+  "scripts": {
+    "start": "concurrently \"npm run start:board\" \"npm run start:widget\"",
+    "start:board": "cd board && npm start",
+    "start:widget": "cd widget && npm start",
+    "install:all": "npm install && cd board && npm install && cd ../widget && npm install"
+  },
+  "devDependencies": {
+    "concurrently": "^8.2.0"
+  }
+} 

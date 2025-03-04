@@ -1,0 +1,6 @@
+@echo off
+echo Stopping any running processes...
+taskkill /f /im node.exe
+
+echo Starting applications...
+npm start 
