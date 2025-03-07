@@ -189,6 +189,9 @@ const WidgetContainer: React.FC<WidgetContainerProps> = ({
     opacity: isDragging ? 0.5 : (isPreview ? 0.7 : 1),
     zIndex: isDragging ? 1000 : (isPreview ? 1000 : (isResizing ? 100 : 1)),
     cursor: isResizing ? 'nwse-resize' : 'default',
+    boxShadow: isDarkMode 
+      ? '2px 2px 5px rgba(0, 0, 0, 0.2)' 
+      : '2px 2px 5px rgba(0, 0, 0, 0.1)'
   }
   
   // Обработчики событий наведения мыши
@@ -210,7 +213,7 @@ const WidgetContainer: React.FC<WidgetContainerProps> = ({
     <div
       ref={containerRef}
       style={style}
-      className={`rounded-lg shadow-sm transition-all duration-200 ${
+      className={`rounded-lg transition-colors duration-200 ${
         isDarkMode ? "bg-gray-800 text-white" : "bg-white text-gray-900"
       }`}
       onMouseEnter={handleMouseEnter}
