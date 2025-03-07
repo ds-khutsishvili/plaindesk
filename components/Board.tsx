@@ -12,7 +12,7 @@ interface BoardProps {
 }
 
 const GRID_SIZE = 20
-const TOP_OFFSET = 80
+const TOP_OFFSET = 64
 
 const Board: React.FC<BoardProps> = ({
   isDarkMode = false,
