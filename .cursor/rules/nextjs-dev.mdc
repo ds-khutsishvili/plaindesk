@@ -1,3 +1,8 @@
+---
+description: 
+globs: 
+alwaysApply: false
+---
 # Next.js Development Guidelines
 
 ## Hot Module Replacement

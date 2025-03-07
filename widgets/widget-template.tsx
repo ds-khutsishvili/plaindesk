@@ -18,6 +18,26 @@ const WidgetTemplate: React.FC<WidgetProps> = ({
 }) => {
   const [settings, setSettings] = useState(widget.settings || {});
 
+  // Обработчик изменения настроек
+  const handleSettingsChange = (newSettings: Record<string, any>) => {
+    const updatedSettings = { ...settings, ...newSettings };
+    setSettings(updatedSettings);
+    
+    if (updateWidget) {
+      updateWidget({
+        ...widget,
+        settings: updatedSettings
+      });
+    }
+  };
+
+  // Обработчик удаления виджета
+  const handleRemove = () => {
+    if (removeWidget) {
+      removeWidget(widget.id);
+    }
+  };
+
   return (
     <div
       className={`rounded-lg shadow-sm flex flex-col p-4 ${

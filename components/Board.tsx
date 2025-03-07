@@ -1,11 +1,14 @@
 "use client"
 
-import { useState, useCallback } from "react"
-import { DndContext, DragEndEvent, DragStartEvent, useSensor, useSensors, PointerSensor } from "@dnd-kit/core"
-import { snapCenterToCursor } from "@dnd-kit/modifiers"
+import { useState, useCallback, useRef, useEffect } from "react"
+import { useDrop, DropTargetMonitor } from "react-dnd"
 import type { Widget } from "../types/Widget"
 import AddWidgetButton from "./AddWidgetButton"
 import WidgetContainer from "./WidgetContainer"
+import dynamic from "next/dynamic"
+
+// Динамический импорт виджетов
+const TextWidget = dynamic(() => import("@/widgets/TextWidget"))
 
 interface BoardProps {
   isDarkMode?: boolean;
@@ -17,113 +20,254 @@ const TOP_OFFSET = 64
 const Board: React.FC<BoardProps> = ({
   isDarkMode = false,
 }) => {
-  // В MVP версии пока работаем с пустым массивом виджетов
+  // Состояние для хранения виджетов
   const [widgets, setWidgets] = useState<Widget[]>([])
   
-  // Состояние для отслеживания перетаскиваемого виджета
-  const [activeWidget, setActiveWidget] = useState<Widget | null>(null)
+  // Состояние для отображения меню выбора виджетов
+  const [showWidgetMenu, setShowWidgetMenu] = useState(false)
   
-  // Настройка сенсоров для dnd-kit
-  const sensors = useSensors(
-    useSensor(PointerSensor, {
-      activationConstraint: {
-        distance: 8, // Минимальное расстояние для активации перетаскивания
-      },
-    })
-  )
+  // Состояние для отображения настроек виджета
+  const [activeSettingsId, setActiveSettingsId] = useState<number | null>(null)
   
-  // Функция для добавления будущих виджетов 
-  const addWidget = (widget: Widget) => {
-    setWidgets([...widgets, widget])
-  }
+  // Состояние для нового виджета, который перетаскивается
+  const [draggedWidget, setDraggedWidget] = useState<Widget | null>(null)
+  
+  // Ref для доски
+  const boardRef = useRef<HTMLDivElement | null>(null)
+  
+  // Функция для добавления виджета
+  const addWidget = useCallback((type: string) => {
+    const newWidget: Widget = {
+      id: Date.now(),
+      type,
+      position: { x: 0, y: 0 },
+      size: { width: 240, height: 160 },
+      title: `Виджет ${type}`,
+      settings: {}
+    }
+    setDraggedWidget(newWidget)
+    setShowWidgetMenu(false)
+  }, [])
+  
+  // Функция для размещения виджета на доске
+  const placeWidget = useCallback((widget: Widget) => {
+    setWidgets(prev => [...prev, widget])
+    setDraggedWidget(null)
+  }, [])
 
   // Функция для удаления виджета
-  const removeWidget = (id: number) => {
-    setWidgets(widgets.filter(widget => widget.id !== id))
-  }
-
-  // Обработчик начала перетаскивания
-  const handleDragStart = (event: DragStartEvent) => {
-    const { active } = event
-    const widgetId = Number(active.id)
-    const draggedWidget = widgets.find(widget => widget.id === widgetId) || null
-    setActiveWidget(draggedWidget)
-  }
-
-  // Обработчик окончания перетаскивания
-  const handleDragEnd = (event: DragEndEvent) => {
-    const { active, delta, over } = event
-    
-    if (activeWidget) {
-      // Обновляем позицию виджета с учетом сетки
-      const newX = Math.round((activeWidget.position.x + delta.x) / GRID_SIZE) * GRID_SIZE
-      const newY = Math.max(TOP_OFFSET, Math.round((activeWidget.position.y + delta.y) / GRID_SIZE) * GRID_SIZE)
-      
-      // Обновляем виджет в массиве
-      setWidgets(widgets.map(widget => 
-        widget.id === activeWidget.id 
-          ? { ...widget, position: { x: newX, y: newY } } 
-          : widget
-      ))
+  const removeWidget = useCallback((id: number) => {
+    setWidgets(widgets => widgets.filter(widget => widget.id !== id))
+    if (activeSettingsId === id) {
+      setActiveSettingsId(null)
     }
-    
-    setActiveWidget(null)
-  }
+  }, [activeSettingsId])
+  
+  // Функция для обновления виджета
+  const updateWidget = useCallback((updatedWidget: Widget) => {
+    setWidgets(prev => 
+      prev.map(widget => 
+        widget.id === updatedWidget.id ? {...updatedWidget} : widget
+      )
+    )
+  }, [])
+  
+  // Функция для изменения размера виджета
+  const handleResize = useCallback((widget: Widget, newSize: { width: number, height: number }) => {
+    updateWidget({
+      ...widget,
+      size: newSize
+    })
+  }, [updateWidget])
+  
+  // Функция для открытия настроек виджета
+  const handleSettingsOpen = useCallback((id: number) => {
+    setActiveSettingsId(id)
+  }, [])
+  
+  // Функция для закрытия настроек виджета
+  const handleSettingsClose = useCallback(() => {
+    setActiveSettingsId(null)
+  }, [])
+  
+  // Настройка области для сброса (drop target)
+  const [, drop] = useDrop(
+    () => ({
+      accept: "widget",
+      drop: (item: Widget, monitor: DropTargetMonitor) => {
+        const delta = monitor.getDifferenceFromInitialOffset()
+        if (delta) {
+          const left = Math.max(0, Math.round((item.position.x + delta.x) / GRID_SIZE) * GRID_SIZE)
+          const top = Math.max(TOP_OFFSET, Math.round((item.position.y + delta.y) / GRID_SIZE) * GRID_SIZE)
+          updateWidget({ ...item, position: { x: left, y: top } })
+        }
+      },
+    }),
+    [updateWidget]
+  )
+  
+  // Применяем drop ref к доске
+  useEffect(() => {
+    drop(boardRef.current)
+  }, [drop])
+  
+  // Обработчик клика по доске для размещения нового виджета
+  const handleClick = useCallback(
+    (e: React.MouseEvent<HTMLDivElement>) => {
+      if (draggedWidget) {
+        const boardRect = e.currentTarget.getBoundingClientRect()
+        const x = Math.round((e.clientX - boardRect.left) / GRID_SIZE) * GRID_SIZE
+        const y = Math.max(TOP_OFFSET, Math.round((e.clientY - boardRect.top) / GRID_SIZE) * GRID_SIZE)
+        placeWidget({ ...draggedWidget, position: { x, y } })
+      }
+    },
+    [draggedWidget, placeWidget]
+  )
+
+  // Функция для рендеринга содержимого виджета в зависимости от типа
+  const renderWidgetContent = useCallback((widget: Widget) => {
+    switch (widget.type) {
+      case 'text':
+        return (
+          <TextWidget
+            widget={widget}
+            updateWidget={updateWidget}
+            removeWidget={removeWidget}
+            isDarkMode={isDarkMode}
+          />
+        )
+      default:
+        return (
+          <div className="h-full flex items-center justify-center text-gray-400">
+            Виджет типа {widget.type}
+          </div>
+        )
+    }
+  }, [updateWidget, removeWidget, isDarkMode])
+
+  // Доступные типы виджетов
+  const widgetTypes = [
+    { id: 'text', name: 'Текст' },
+    { id: 'calendar', name: 'Календарь' },
+    { id: 'clock', name: 'Часы' },
+    { id: 'todo', name: 'Задачи' }
+  ]
 
   return (
     <div className="relative w-full h-screen overflow-hidden">
       {/* Основная доска с сеткой */}
-      <DndContext 
-        sensors={sensors}
-        onDragStart={handleDragStart}
-        onDragEnd={handleDragEnd}
-        modifiers={[snapCenterToCursor]}
+      <div
+        ref={boardRef}
+        className={`w-full h-screen overflow-hidden relative transition-colors duration-200 ${
+          isDarkMode ? "bg-gray-900" : "bg-gray-50"
+        }`}
+        style={{
+          backgroundImage: `linear-gradient(${isDarkMode ? "rgba(255, 255, 255, 0.05)" : "rgba(0, 0, 0, 0.1)"} 1px, transparent 1px), 
+             linear-gradient(90deg, ${isDarkMode ? "rgba(255, 255, 255, 0.05)" : "rgba(0, 0, 0, 0.1)"} 1px, transparent 1px)`,
+          backgroundSize: `${GRID_SIZE}px ${GRID_SIZE}px`,
+          backgroundPosition: `0 ${TOP_OFFSET}px`,
+        }}
+        onClick={handleClick}
       >
-        <div
-          className={`w-full h-screen overflow-hidden relative transition-colors duration-200 ${
-            isDarkMode ? "bg-gray-900" : "bg-gray-50"
-          }`}
-          style={{
-            backgroundImage: `linear-gradient(${isDarkMode ? "rgba(255, 255, 255, 0.05)" : "rgba(0, 0, 0, 0.1)"} 1px, transparent 1px), 
-               linear-gradient(90deg, ${isDarkMode ? "rgba(255, 255, 255, 0.05)" : "rgba(0, 0, 0, 0.1)"} 1px, transparent 1px)`,
-            backgroundSize: `${GRID_SIZE}px ${GRID_SIZE}px`,
-            backgroundPosition: `0 ${TOP_OFFSET}px`,
-          }}
-        >
-          {/* Отображаем все виджеты */}
-          {widgets.map((widget) => (
+        {/* Отображаем все виджеты */}
+        {widgets.map((widget) => (
+          <WidgetContainer 
+            key={widget.id} 
+            widget={widget} 
+            isDarkMode={isDarkMode}
+            onResize={handleResize}
+            onRemove={removeWidget}
+            onSettingsOpen={handleSettingsOpen}
+            updateWidget={updateWidget}
+          >
+            {renderWidgetContent(widget)}
+          </WidgetContainer>
+        ))}
+        
+        {/* Отображаем "призрак" перетаскиваемого виджета */}
+        {draggedWidget && (
+          <div 
+            className="absolute pointer-events-none opacity-70"
+            style={{
+              left: `${draggedWidget.position.x}px`,
+              top: `${draggedWidget.position.y}px`,
+              width: `${draggedWidget.size.width}px`,
+              height: `${draggedWidget.size.height}px`,
+            }}
+          >
             <WidgetContainer 
-              key={widget.id} 
-              widget={widget} 
-              isDarkMode={isDarkMode}
-            />
-          ))}
-          
-          {/* Отображаем превью перетаскиваемого виджета */}
-          {activeWidget && (
-            <WidgetContainer 
-              widget={activeWidget} 
+              widget={draggedWidget} 
               isDarkMode={isDarkMode}
               isPreview={true}
-            />
-          )}
-          
-          {/* Кнопка добавления виджета в правом нижнем углу */}
-          <AddWidgetButton 
-            onClick={() => {
-              // Пример добавления тестового виджета
-              const newWidget: Widget = {
-                id: Date.now(),
-                type: "test",
-                position: { x: 100, y: 100 },
-                size: { width: 200, height: 150 },
-                title: "Тестовый виджет"
-              }
-              addWidget(newWidget)
-            }} 
-          />
-        </div>
-      </DndContext>
+            >
+              {renderWidgetContent(draggedWidget)}
+            </WidgetContainer>
+          </div>
+        )}
+        
+        {/* Кнопка добавления виджета в правом нижнем углу */}
+        <AddWidgetButton 
+          onClick={() => setShowWidgetMenu(true)} 
+        />
+        
+        {/* Меню выбора виджетов */}
+        {showWidgetMenu && (
+          <div className="fixed bottom-20 right-8 bg-white dark:bg-gray-800 rounded-lg shadow-lg p-4 z-50">
+            <div className="text-lg font-medium mb-2 dark:text-white">Выберите виджет</div>
+            <div className="flex flex-col space-y-2">
+              {widgetTypes.map(type => (
+                <button
+                  key={type.id}
+                  className="px-4 py-2 bg-gray-100 dark:bg-gray-700 hover:bg-purple-100 dark:hover:bg-purple-900 rounded-md text-left dark:text-white"
+                  onClick={() => addWidget(type.id)}
+                >
+                  {type.name}
+                </button>
+              ))}
+            </div>
+            <button 
+              className="absolute top-2 right-2 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
+              onClick={() => setShowWidgetMenu(false)}
+            >
+              ✕
+            </button>
+          </div>
+        )}
+        
+        {/* Модальное окно настроек виджета */}
+        {activeSettingsId !== null && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+            <div className={`bg-white dark:bg-gray-800 rounded-lg shadow-lg p-6 max-w-md w-full ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
+              <div className="text-xl font-medium mb-4">Настройки виджета</div>
+              <div className="mb-4">
+                <label className="block mb-2">Заголовок</label>
+                <input 
+                  type="text" 
+                  className="w-full px-3 py-2 border rounded-md dark:bg-gray-700 dark:border-gray-600"
+                  value={widgets.find(w => w.id === activeSettingsId)?.title || ''}
+                  onChange={(e) => {
+                    const widget = widgets.find(w => w.id === activeSettingsId)
+                    if (widget) {
+                      updateWidget({
+                        ...widget,
+                        title: e.target.value
+                      })
+                    }
+                  }}
+                />
+              </div>
+              <div className="flex justify-end">
+                <button 
+                  className="px-4 py-2 bg-purple-600 text-white rounded-md hover:bg-purple-700"
+                  onClick={handleSettingsClose}
+                >
+                  Закрыть
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
     </div>
   )
 }
