@@ -8,6 +8,16 @@ export interface Size {
   height: number;
 }
 
+export interface WidgetManifest {
+  id: string;           // Уникальный идентификатор типа виджета
+  name: string;         // Отображаемое имя виджета
+  description: string;  // Описание виджета
+  minSize: Size;        // Минимальный размер виджета
+  maxSize: Size;        // Максимальный размер виджета
+  defaultSize: Size;    // Размер виджета по умолчанию
+  icon?: string;        // Иконка виджета (опционально)
+}
+
 export interface Widget {
   id: number;
   type: string;

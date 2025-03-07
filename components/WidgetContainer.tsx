@@ -1,26 +1,38 @@
 "use client"
 
+/**
+ * Компонент-контейнер для виджетов
+ * 
+ * Обеспечивает функциональность перетаскивания, изменения размера и
+ * отображения элементов управления для всех виджетов.
+ */
+
 import { useRef, useState, useEffect, ReactNode, useCallback } from "react"
 import { useDrag, DragSourceMonitor } from "react-dnd"
 import type { Widget } from "@/types/Widget"
+import { X, Settings, GripVertical } from "lucide-react"
 
 interface WidgetContainerProps {
-  widget: Widget
-  isDarkMode?: boolean
-  isPreview?: boolean
-  onResize?: (widget: Widget, newSize: { width: number, height: number }) => void
-  onRemove?: (id: number) => void
-  onSettingsOpen?: (id: number) => void
-  updateWidget?: (widget: Widget) => void
-  children?: ReactNode
+  widget: Widget                                                    // Данные виджета
+  isDarkMode?: boolean                                              // Флаг темного режима
+  isPreview?: boolean                                               // Флаг предпросмотра (при перетаскивании)
+  onResize?: (widget: Widget, newSize: { width: number, height: number }) => void  // Обработчик изменения размера
+  onRemove?: (id: number) => void                                   // Обработчик удаления
+  onSettingsOpen?: (id: number) => void                             // Обработчик открытия настроек
+  updateWidget?: (widget: Widget) => void                           // Обработчик обновления данных виджета
+  children?: ReactNode                                              // Содержимое виджета
 }
 
+// Константы для размеров сетки и ограничений размера по умолчанию
 const GRID_SIZE = 20
 const DEFAULT_MIN_WIDTH = 100
 const DEFAULT_MIN_HEIGHT = 80
 const DEFAULT_MAX_WIDTH = 800
 const DEFAULT_MAX_HEIGHT = 600
 
+/**
+ * Компонент-контейнер для виджетов
+ */
 const WidgetContainer: React.FC<WidgetContainerProps> = ({
   widget,
   isDarkMode = false,
@@ -31,6 +43,7 @@ const WidgetContainer: React.FC<WidgetContainerProps> = ({
   updateWidget,
   children
 }) => {
+  // Состояния для взаимодействия с виджетом
   const [isHovered, setIsHovered] = useState(false)
   const [isResizing, setIsResizing] = useState(false)
   const [startResizePos, setStartResizePos] = useState({ x: 0, y: 0 })
@@ -42,11 +55,11 @@ const WidgetContainer: React.FC<WidgetContainerProps> = ({
   const maxWidth = widget.maxSize?.width || DEFAULT_MAX_WIDTH
   const maxHeight = widget.maxSize?.height || DEFAULT_MAX_HEIGHT
   
-  // Ref для кнопки перетаскивания
+  // Refs для DOM-элементов
   const dragHandleRef = useRef<HTMLDivElement | null>(null)
-  
-  // Ref для основного контейнера
   const containerRef = useRef<HTMLDivElement | null>(null)
+  
+  // ===== Функциональность перетаскивания (Drag & Drop) =====
   
   // Настройка перетаскивания с помощью react-dnd
   const [{ isDragging }, drag, dragPreview] = useDrag(
@@ -61,23 +74,13 @@ const WidgetContainer: React.FC<WidgetContainerProps> = ({
     [widget, isPreview, isResizing]
   )
   
-  // Применяем refs с помощью useEffect
+  // Применяем dragPreview к основному контейнеру
   useEffect(() => {
     dragPreview(containerRef.current)
   }, [dragPreview, containerRef])
   
-  // Стили для контейнера
-  const style = {
-    width: `${widget.size.width}px`,
-    height: `${widget.size.height}px`,
-    position: "absolute" as const,
-    left: `${widget.position.x}px`,
-    top: `${widget.position.y}px`,
-    opacity: isDragging ? 0.5 : (isPreview ? 0.7 : 1),
-    zIndex: isDragging ? 1000 : (isPreview ? 1000 : (isResizing ? 100 : 1)),
-    cursor: isResizing ? 'nwse-resize' : 'default',
-  }
-
+  // ===== Функциональность изменения размера =====
+  
   // Обработчик движения мыши при изменении размера
   const handleResizeMove = (e: MouseEvent) => {
     if (!isResizing) return;
@@ -112,7 +115,6 @@ const WidgetContainer: React.FC<WidgetContainerProps> = ({
   
   // Обработчик окончания изменения размера
   const handleResizeEnd = () => {
-    console.log('Resize end:', widget.id);
     setIsResizing(false);
     
     // Удаляем обработчики событий с документа
@@ -124,7 +126,7 @@ const WidgetContainer: React.FC<WidgetContainerProps> = ({
   const handleResizeStart = (e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
-    console.log('Resize start:', widget.id);
+    
     setIsResizing(true);
     setStartResizePos({ x: e.clientX, y: e.clientY });
     setStartSize({ width: widget.size.width, height: widget.size.height });
@@ -134,16 +136,17 @@ const WidgetContainer: React.FC<WidgetContainerProps> = ({
     document.addEventListener('mouseup', handleResizeEnd);
   };
   
-  // Создаем функцию handleResizeMove и handleResizeEnd только один раз
+  // Создаем функцию handleResizeMove и handleResizeEnd только один раз с помощью useRef
   const handleResizeMoveRef = useRef(handleResizeMove);
   const handleResizeEndRef = useRef(handleResizeEnd);
   
+  // Обновляем ссылки на функции при изменении зависимостей
   useEffect(() => {
     handleResizeMoveRef.current = handleResizeMove;
     handleResizeEndRef.current = handleResizeEnd;
-  }, [handleResizeMove, handleResizeEnd]);
+  }, [widget, minWidth, minHeight, maxWidth, maxHeight, onResize, isResizing, startResizePos, startSize]);
   
-  // Обертка для обработчиков событий
+  // Обертки для обработчиков событий, которые используют актуальные ссылки на функции
   const handleResizeMoveWrapper = useCallback((e: MouseEvent) => {
     handleResizeMoveRef.current(e);
   }, []);
@@ -156,7 +159,7 @@ const WidgetContainer: React.FC<WidgetContainerProps> = ({
   const handleResizeStartWithWrapper = useCallback((e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
-    console.log('Resize start with wrapper:', widget.id);
+    
     setIsResizing(true);
     setStartResizePos({ x: e.clientX, y: e.clientY });
     setStartSize({ width: widget.size.width, height: widget.size.height });
@@ -166,7 +169,7 @@ const WidgetContainer: React.FC<WidgetContainerProps> = ({
     document.addEventListener('mouseup', handleResizeEndWrapper);
   }, [widget, handleResizeMoveWrapper, handleResizeEndWrapper]);
   
-  // Очистка обработчиков при размонтировании
+  // Очистка обработчиков при размонтировании компонента
   useEffect(() => {
     return () => {
       document.removeEventListener('mousemove', handleResizeMoveWrapper);
@@ -174,7 +177,35 @@ const WidgetContainer: React.FC<WidgetContainerProps> = ({
     };
   }, [handleResizeMoveWrapper, handleResizeEndWrapper]);
   
-  // Применяем dragPreview к основному контейнеру и drag к кнопке перетаскивания
+  // ===== Стили и рендеринг =====
+  
+  // Стили для контейнера
+  const style = {
+    width: `${widget.size.width}px`,
+    height: `${widget.size.height}px`,
+    position: "absolute" as const,
+    left: `${widget.position.x}px`,
+    top: `${widget.position.y}px`,
+    opacity: isDragging ? 0.5 : (isPreview ? 0.7 : 1),
+    zIndex: isDragging ? 1000 : (isPreview ? 1000 : (isResizing ? 100 : 1)),
+    cursor: isResizing ? 'nwse-resize' : 'default',
+  }
+  
+  // Обработчики событий наведения мыши
+  const handleMouseEnter = useCallback(() => setIsHovered(true), []);
+  const handleMouseLeave = useCallback(() => setIsHovered(false), []);
+  
+  // Обработчики для кнопок управления
+  const handleRemoveClick = useCallback((e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (onRemove) onRemove(widget.id);
+  }, [onRemove, widget.id]);
+  
+  const handleSettingsClick = useCallback((e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (onSettingsOpen) onSettingsOpen(widget.id);
+  }, [onSettingsOpen, widget.id]);
+  
   return (
     <div
       ref={containerRef}
@@ -182,8 +213,8 @@ const WidgetContainer: React.FC<WidgetContainerProps> = ({
       className={`rounded-lg shadow-sm transition-all duration-200 ${
         isDarkMode ? "bg-gray-800 text-white" : "bg-white text-gray-900"
       }`}
-      onMouseEnter={() => setIsHovered(true)}
-      onMouseLeave={() => setIsHovered(false)}
+      onMouseEnter={handleMouseEnter}
+      onMouseLeave={handleMouseLeave}
     >
       {/* Содержимое виджета */}
       <div className="p-4 h-full">
@@ -201,41 +232,25 @@ const WidgetContainer: React.FC<WidgetContainerProps> = ({
               drag(node);
             }}
           >
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-              <path d="M8 6H6V8H8V6Z" fill="currentColor" />
-              <path d="M8 11H6V13H8V11Z" fill="currentColor" />
-              <path d="M8 16H6V18H8V16Z" fill="currentColor" />
-              <path d="M13 6H11V8H13V6Z" fill="currentColor" />
-              <path d="M13 11H11V13H13V11Z" fill="currentColor" />
-              <path d="M13 16H11V18H13V16Z" fill="currentColor" />
-              <path d="M18 6H16V8H18V6Z" fill="currentColor" />
-              <path d="M18 11H16V13H18V11Z" fill="currentColor" />
-              <path d="M18 16H16V18H18V16Z" fill="currentColor" />
-            </svg>
+            <GripVertical size={14} />
           </div>
           
           {/* Кнопки управления */}
           <div className="absolute top-2 right-2 flex space-x-2">
-            {/* Кнопка удаления */}
-            <button 
-              className="w-6 h-6 rounded-full bg-red-500 text-white flex items-center justify-center opacity-70 hover:opacity-100"
-              onClick={(e) => {
-                e.stopPropagation()
-                if (onRemove) onRemove(widget.id)
-              }}
-            >
-              ✕
-            </button>
-            
             {/* Кнопка настроек */}
             <button 
               className="w-6 h-6 rounded-full bg-gray-200 text-gray-700 flex items-center justify-center opacity-70 hover:opacity-100 dark:bg-gray-700 dark:text-gray-200"
-              onClick={(e) => {
-                e.stopPropagation()
-                if (onSettingsOpen) onSettingsOpen(widget.id)
-              }}
+              onClick={handleSettingsClick}
             >
-              ⚙
+              <Settings size={14} />
+            </button>
+            
+            {/* Кнопка удаления */}
+            <button 
+              className="w-6 h-6 rounded-full bg-red-500 text-white flex items-center justify-center opacity-70 hover:opacity-100"
+              onClick={handleRemoveClick}
+            >
+              <X size={14} />
             </button>
           </div>
           

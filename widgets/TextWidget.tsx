@@ -1,41 +1,57 @@
 "use client"
 
+/**
+ * Текстовый виджет
+ * 
+ * Виджет для отображения и редактирования текста.
+ * Позволяет пользователю вводить и сохранять текстовую информацию.
+ */
+
 import { useState, useEffect } from 'react';
-import type { Widget } from '@/types/Widget';
-import { DEFAULT_MIN_SIZE, DEFAULT_MAX_SIZE } from './widget-template';
+import type { WidgetManifest } from '@/types/Widget';
+import { WidgetProps } from './widget-template';
 
-interface TextWidgetProps {
-  widget: Widget;
-  updateWidget?: (widget: Widget) => void;
-  removeWidget?: (id: number) => void;
-  isDarkMode?: boolean;
-}
+/**
+ * Манифест текстового виджета
+ * Определяет метаданные и ограничения для текстового виджета
+ */
+export const TEXT_WIDGET_MANIFEST: WidgetManifest = {
+  id: 'text',
+  name: 'Текстовый виджет',
+  description: 'Виджет для отображения и редактирования текста',
+  minSize: { width: 120, height: 100 },
+  maxSize: { width: 600, height: 400 },
+  defaultSize: { width: 240, height: 160 }
+};
 
-// Определяем минимальный и максимальный размер для текстового виджета
-export const TEXT_WIDGET_MIN_SIZE = { width: 400, height: 200 };
-export const TEXT_WIDGET_MAX_SIZE = { width: 600, height: 400 };
-
-const TextWidget: React.FC<TextWidgetProps> = ({
+/**
+ * Компонент текстового виджета
+ */
+const TextWidget: React.FC<WidgetProps> = ({
   widget,
   updateWidget,
   removeWidget,
   isDarkMode = false,
 }) => {
+  // Состояние текста и режима редактирования
   const [text, setText] = useState(widget.content?.text || 'Текстовый виджет');
   const [isEditing, setIsEditing] = useState(false);
 
-  // При первом рендеринге устанавливаем минимальный и максимальный размер
+  // Установка минимального и максимального размера при первом рендеринге
   useEffect(() => {
     if (updateWidget && (!widget.minSize || !widget.maxSize)) {
       updateWidget({
         ...widget,
-        minSize: TEXT_WIDGET_MIN_SIZE,
-        maxSize: TEXT_WIDGET_MAX_SIZE
+        minSize: TEXT_WIDGET_MANIFEST.minSize,
+        maxSize: TEXT_WIDGET_MANIFEST.maxSize
       });
     }
   }, [widget, updateWidget]);
 
-  // Обработчик изменения текста
+  /**
+   * Обработчик изменения текста
+   * Обновляет локальное состояние и вызывает функцию обновления виджета
+   */
   const handleTextChange = (newText: string) => {
     setText(newText);
     
@@ -56,11 +72,15 @@ const TextWidget: React.FC<TextWidgetProps> = ({
 
   return (
     <div className="p-4 flex flex-col h-full">
+      {/* Заголовок виджета */}
       {widget.title && (
         <div className="text-lg font-medium mb-2">{widget.title}</div>
       )}
+      
+      {/* Содержимое виджета */}
       <div className="flex-1 overflow-auto">
         {isEditing ? (
+          // Режим редактирования
           <textarea
             className={`w-full h-full p-2 rounded-md resize-none ${
               isDarkMode ? 'bg-gray-700 text-white' : 'bg-gray-50 text-gray-900'
@@ -71,6 +91,7 @@ const TextWidget: React.FC<TextWidgetProps> = ({
             autoFocus
           />
         ) : (
+          // Режим просмотра
           <div 
             className="h-full cursor-text whitespace-pre-wrap"
             onClick={() => setIsEditing(true)}

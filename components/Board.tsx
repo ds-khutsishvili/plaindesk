@@ -1,14 +1,12 @@
 "use client"
 
-import { useState, useCallback, useRef, useEffect } from "react"
+import { useState, useCallback, useRef, useEffect, Suspense } from "react"
 import { useDrop, DropTargetMonitor } from "react-dnd"
 import type { Widget } from "../types/Widget"
 import AddWidgetButton from "./AddWidgetButton"
 import WidgetContainer from "./WidgetContainer"
 import dynamic from "next/dynamic"
-
-// Динамический импорт виджетов
-const TextWidget = dynamic(() => import("@/widgets/TextWidget"))
+import { widgetManifests, getWidgetManifest } from "@/widgets"
 
 interface BoardProps {
   isDarkMode?: boolean;
@@ -16,6 +14,25 @@ interface BoardProps {
 
 const GRID_SIZE = 20
 const TOP_OFFSET = 60
+
+// Кэш для динамически загруженных компонентов виджетов
+const widgetComponentsCache: Record<string, React.ComponentType<any>> = {};
+
+// Функция для динамической загрузки компонента виджета
+const loadWidgetComponent = (type: string) => {
+  if (!widgetComponentsCache[type]) {
+    // Преобразуем первую букву типа в верхний регистр для соответствия имени файла
+    const capitalizedType = type.charAt(0).toUpperCase() + type.slice(1);
+    widgetComponentsCache[type] = dynamic(
+      () => import(`@/widgets/${capitalizedType}Widget`).catch(() => import('@/widgets/widget-template')),
+      { 
+        loading: () => <div className="h-full flex items-center justify-center text-gray-400">Загрузка...</div>,
+        ssr: false
+      }
+    );
+  }
+  return widgetComponentsCache[type];
+};
 
 const Board: React.FC<BoardProps> = ({
   isDarkMode = false,
@@ -43,12 +60,17 @@ const Board: React.FC<BoardProps> = ({
   
   // Функция для добавления виджета
   const addWidget = useCallback((type: string) => {
+    // Получаем манифест виджета
+    const manifest = getWidgetManifest(type);
+    
     const newWidget: Widget = {
       id: Date.now(),
       type,
       position: { x: GRID_SIZE, y: TOP_OFFSET + GRID_SIZE },
-      size: { width: 240, height: 160 },
-      title: `Виджет ${type}`,
+      size: manifest.defaultSize,
+      minSize: manifest.minSize,
+      maxSize: manifest.maxSize,
+      title: manifest.name,
       settings: {}
     }
     placeWidget(newWidget)
@@ -127,32 +149,19 @@ const Board: React.FC<BoardProps> = ({
 
   // Функция для рендеринга содержимого виджета в зависимости от типа
   const renderWidgetContent = useCallback((widget: Widget) => {
-    switch (widget.type) {
-      case 'text':
-        return (
-          <TextWidget
-            widget={widget}
-            updateWidget={updateWidget}
-            removeWidget={removeWidget}
-            isDarkMode={isDarkMode}
-          />
-        )
-      default:
-        return (
-          <div className="h-full flex items-center justify-center text-gray-400">
-            Виджет типа {widget.type}
-          </div>
-        )
-    }
-  }, [updateWidget, removeWidget, isDarkMode])
-
-  // Доступные типы виджетов
-  const widgetTypes = [
-    { id: 'text', name: 'Текст' },
-    { id: 'calendar', name: 'Календарь' },
-    { id: 'clock', name: 'Часы' },
-    { id: 'todo', name: 'Задачи' }
-  ]
+    const WidgetComponent = loadWidgetComponent(widget.type);
+    
+    return (
+      <Suspense fallback={<div className="h-full flex items-center justify-center text-gray-400">Загрузка...</div>}>
+        <WidgetComponent
+          widget={widget}
+          updateWidget={updateWidget}
+          removeWidget={removeWidget}
+          isDarkMode={isDarkMode}
+        />
+      </Suspense>
+    );
+  }, [updateWidget, removeWidget, isDarkMode]);
 
   return (
     <div className="relative w-full h-screen overflow-hidden">
@@ -216,13 +225,13 @@ const Board: React.FC<BoardProps> = ({
           <div className="fixed bottom-20 right-8 bg-white dark:bg-gray-800 rounded-lg shadow-lg p-4 z-50">
             <div className="text-lg font-medium mb-2 dark:text-white">Выберите виджет</div>
             <div className="flex flex-col space-y-2">
-              {widgetTypes.map(type => (
+              {widgetManifests.map(manifest => (
                 <button
-                  key={type.id}
+                  key={manifest.id}
                   className="px-4 py-2 bg-gray-100 dark:bg-gray-700 hover:bg-purple-100 dark:hover:bg-purple-900 rounded-md text-left dark:text-white"
-                  onClick={() => addWidget(type.id)}
+                  onClick={() => addWidget(manifest.id)}
                 >
-                  {type.name}
+                  {manifest.name}
                 </button>
               ))}
             </div>

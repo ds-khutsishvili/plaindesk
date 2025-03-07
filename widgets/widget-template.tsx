@@ -1,34 +1,69 @@
 "use client"
 
-import { useState } from 'react';
-import type { Widget } from '@/types/Widget';
+/**
+ * Базовый шаблон виджета
+ * 
+ * Этот файл содержит базовый шаблон, который должны использовать все виджеты.
+ * Он определяет общий интерфейс, манифест по умолчанию и базовую функциональность.
+ */
 
+import { useState, useEffect } from 'react';
+import type { Widget, WidgetManifest } from '@/types/Widget';
+
+/**
+ * Интерфейс свойств виджета
+ * Все виджеты должны принимать эти свойства
+ */
 export interface WidgetProps {
-  widget: Widget;
-  updateWidget?: (widget: Widget) => void;
-  removeWidget?: (id: number) => void;
-  isDarkMode?: boolean;
+  widget: Widget;                              // Данные виджета
+  updateWidget?: (widget: Widget) => void;     // Функция для обновления данных виджета
+  removeWidget?: (id: number) => void;         // Функция для удаления виджета
+  isDarkMode?: boolean;                        // Флаг темного режима
 }
 
-// Константы для определения минимального и максимального размера
-// Каждый виджет должен переопределить эти значения
-export const DEFAULT_MIN_SIZE = { width: 100, height: 80 };
-export const DEFAULT_MAX_SIZE = { width: 800, height: 600 };
+/**
+ * Манифест виджета по умолчанию
+ * Определяет базовые метаданные и ограничения для всех виджетов
+ */
+export const DEFAULT_WIDGET_MANIFEST: WidgetManifest = {
+  id: 'base',
+  name: 'Базовый виджет',
+  description: 'Базовый шаблон виджета',
+  minSize: { width: 100, height: 80 },         // Минимальный размер
+  maxSize: { width: 800, height: 600 },        // Максимальный размер
+  defaultSize: { width: 240, height: 160 }     // Размер по умолчанию
+};
 
+/**
+ * Базовый компонент виджета
+ * 
+ * Служит шаблоном для всех виджетов и предоставляет базовую функциональность.
+ * Каждый виджет должен расширять этот шаблон и определять свой собственный манифест.
+ */
 const WidgetTemplate: React.FC<WidgetProps> = ({
   widget,
   updateWidget,
   removeWidget,
   isDarkMode = false,
 }) => {
+  // Базовое состояние настроек
   const [settings, setSettings] = useState(widget.settings || {});
 
-  // Получаем минимальный и максимальный размер виджета
-  // Если они не определены в виджете, используем значения из статических свойств
-  const minSize = widget.minSize || DEFAULT_MIN_SIZE;
-  const maxSize = widget.maxSize || DEFAULT_MAX_SIZE;
+  // Установка минимального и максимального размера при первом рендеринге
+  useEffect(() => {
+    if (updateWidget && (!widget.minSize || !widget.maxSize)) {
+      updateWidget({
+        ...widget,
+        minSize: DEFAULT_WIDGET_MANIFEST.minSize,
+        maxSize: DEFAULT_WIDGET_MANIFEST.maxSize
+      });
+    }
+  }, [widget, updateWidget]);
 
-  // Обработчик изменения настроек
+  /**
+   * Обработчик изменения настроек
+   * Обновляет локальное состояние и вызывает функцию обновления виджета
+   */
   const handleSettingsChange = (newSettings: Record<string, any>) => {
     const updatedSettings = { ...settings, ...newSettings };
     setSettings(updatedSettings);
@@ -48,40 +83,17 @@ const WidgetTemplate: React.FC<WidgetProps> = ({
     }
   };
 
-  // При первом рендеринге устанавливаем минимальный и максимальный размер
-  // если они еще не установлены
-  useState(() => {
-    if (!widget.minSize && updateWidget) {
-      updateWidget({
-        ...widget,
-        minSize: DEFAULT_MIN_SIZE,
-        maxSize: DEFAULT_MAX_SIZE
-      });
-    }
-  });
-
   return (
-    <div
-      className={`rounded-lg shadow-sm flex flex-col p-4 ${
-        isDarkMode ? 'bg-gray-800 text-white' : 'bg-white text-gray-900'
-      }`}
-      style={{
-        width: `${widget.size.width}px`,
-        height: `${widget.size.height}px`,
-        minWidth: `${minSize.width}px`,
-        minHeight: `${minSize.height}px`,
-        maxWidth: `${maxSize.width}px`,
-        maxHeight: `${maxSize.height}px`,
-      }}
-    >
+    <div className="p-4 flex flex-col h-full">
+      {/* Заголовок виджета */}
       {widget.title && (
         <div className="text-lg font-medium mb-2">{widget.title}</div>
       )}
-      <div className="flex-1">
-        {/* Placeholder для контента виджета */}
-        <div className="h-full flex items-center justify-center text-gray-400">
-          Контент виджета
-        </div>
+      
+      {/* Содержимое виджета */}
+      <div className="flex-1 flex items-center justify-center text-gray-400">
+        Это базовый шаблон виджета.
+        Создайте свой виджет, расширяя этот шаблон.
       </div>
     </div>
   );
