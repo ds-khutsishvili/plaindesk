@@ -7,7 +7,7 @@
  * Позволяет пользователю вводить и сохранять текстовую информацию.
  */
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import type { WidgetManifest } from '@/types/Widget';
 import { WidgetProps } from './widget-template';
 
@@ -21,7 +21,8 @@ export const TEXT_WIDGET_MANIFEST: WidgetManifest = {
   description: 'Виджет для отображения и редактирования текста',
   minSize: { width: 120, height: 100 },
   maxSize: { width: 600, height: 400 },
-  defaultSize: { width: 240, height: 160 }
+  defaultSize: { width: 240, height: 160 },
+  supportsDarkMode: true
 };
 
 /**
@@ -43,25 +44,48 @@ const TextWidget: React.FC<WidgetProps> = ({
       updateWidget({
         ...widget,
         minSize: TEXT_WIDGET_MANIFEST.minSize,
-        maxSize: TEXT_WIDGET_MANIFEST.maxSize
+        maxSize: TEXT_WIDGET_MANIFEST.maxSize,
+        lastUpdated: Date.now()
       });
     }
   }, [widget, updateWidget]);
+
+  // Загрузка текста из содержимого виджета при монтировании
+  useEffect(() => {
+    if (widget.content?.text) {
+      setText(widget.content.text);
+    }
+  }, [widget.content?.text]);
 
   /**
    * Обработчик изменения текста
    * Обновляет локальное состояние и вызывает функцию обновления виджета
    */
-  const handleTextChange = (newText: string) => {
+  const handleTextChange = useCallback((newText: string) => {
     setText(newText);
     
     if (updateWidget) {
       updateWidget({
         ...widget,
-        content: { ...widget.content, text: newText }
+        content: { ...widget.content, text: newText },
+        lastUpdated: Date.now()
       });
     }
-  };
+  }, [widget, updateWidget]);
+
+  /**
+   * Обработчик начала редактирования
+   */
+  const handleStartEditing = useCallback(() => {
+    setIsEditing(true);
+  }, []);
+
+  /**
+   * Обработчик окончания редактирования
+   */
+  const handleEndEditing = useCallback(() => {
+    setIsEditing(false);
+  }, []);
 
   // Обработчик удаления виджета
   const handleRemove = () => {
@@ -74,7 +98,7 @@ const TextWidget: React.FC<WidgetProps> = ({
     <div className="p-4 flex flex-col h-full">
       {/* Заголовок виджета */}
       {widget.title && (
-        <div className="text-lg font-medium mb-2">{widget.title}</div>
+        <div className={`text-lg font-medium mb-2 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>{widget.title}</div>
       )}
       
       {/* Содержимое виджета */}
@@ -82,19 +106,21 @@ const TextWidget: React.FC<WidgetProps> = ({
         {isEditing ? (
           // Режим редактирования
           <textarea
-            className={`w-full h-full p-2 rounded-md resize-none ${
-              isDarkMode ? 'bg-gray-700 text-white' : 'bg-gray-50 text-gray-900'
-            }`}
+            className={`w-full h-full p-2 rounded-md resize-none transition-colors duration-200 ${
+              isDarkMode ? 'bg-gray-700 text-white border-gray-600' : 'bg-gray-50 text-gray-900 border-gray-200'
+            } border`}
             value={text}
             onChange={(e) => handleTextChange(e.target.value)}
-            onBlur={() => setIsEditing(false)}
+            onBlur={handleEndEditing}
             autoFocus
           />
         ) : (
           // Режим просмотра
           <div 
-            className="h-full cursor-text whitespace-pre-wrap"
-            onClick={() => setIsEditing(true)}
+            className={`h-full cursor-text whitespace-pre-wrap transition-colors duration-200 ${
+              isDarkMode ? 'text-gray-100' : 'text-gray-800'
+            }`}
+            onClick={handleStartEditing}
           >
             {text || 'Нажмите, чтобы добавить текст'}
           </div>

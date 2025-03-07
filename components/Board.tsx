@@ -7,13 +7,13 @@ import AddWidgetButton from "./AddWidgetButton"
 import WidgetContainer from "./WidgetContainer"
 import dynamic from "next/dynamic"
 import { widgetManifests, getWidgetManifest } from "@/widgets"
+import { boardService } from "@/services/BoardService"
 
 interface BoardProps {
   isDarkMode?: boolean;
 }
 
 const GRID_SIZE = 20
-const TOP_OFFSET = 60
 
 // Кэш для динамически загруженных компонентов виджетов
 const widgetComponentsCache: Record<string, React.ComponentType<any>> = {};
@@ -49,14 +49,61 @@ const Board: React.FC<BoardProps> = ({
   // Состояние для нового виджета, который перетаскивается
   const [draggedWidget, setDraggedWidget] = useState<Widget | null>(null)
   
+  // Состояние загрузки
+  const [isLoading, setIsLoading] = useState(true)
+  
   // Ref для доски
   const boardRef = useRef<HTMLDivElement | null>(null)
   
+  // Загрузка данных при монтировании компонента
+  useEffect(() => {
+    const loadData = async () => {
+      setIsLoading(true);
+      
+      try {
+        // Загружаем данные из хранилища
+        await boardService.load();
+        
+        // Получаем виджеты
+        const loadedWidgets = boardService.getWidgets();
+        setWidgets(loadedWidgets);
+        
+        // Получаем настройки доски
+        const settings = boardService.getBoardSettings();
+        if (settings) {
+          // Здесь можно применить настройки доски, например, размер сетки
+          // setGridSize(settings.gridSize);
+        }
+      } catch (error) {
+        console.error('Error loading board data:', error);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    
+    loadData();
+    
+    // Очистка при размонтировании
+    return () => {
+      boardService.destroy();
+    };
+  }, []);
+  
   // Функция для размещения виджета на доске
-  const placeWidget = useCallback((widget: Widget) => {
-    setWidgets(prev => [...prev, widget])
-    setDraggedWidget(null)
-  }, [])
+  const placeWidget = useCallback(async (widget: Widget) => {
+    try {
+      // Добавляем виджет в состояние
+      setWidgets(prev => [...prev, widget]);
+      
+      // Сохраняем виджет в хранилище
+      await boardService.addWidget(widget);
+      
+      // Сбрасываем состояние перетаскиваемого виджета
+      setDraggedWidget(null);
+    } catch (error) {
+      console.error('Error placing widget:', error);
+    }
+  }, []);
   
   // Функция для добавления виджета
   const addWidget = useCallback((type: string) => {
@@ -66,86 +113,116 @@ const Board: React.FC<BoardProps> = ({
     const newWidget: Widget = {
       id: Date.now(),
       type,
-      position: { x: GRID_SIZE, y: TOP_OFFSET + GRID_SIZE },
+      position: { x: GRID_SIZE, y: GRID_SIZE },
       size: manifest.defaultSize,
       minSize: manifest.minSize,
       maxSize: manifest.maxSize,
       title: manifest.name,
-      settings: {}
+      settings: {},
+      lastUpdated: Date.now()
     }
-    placeWidget(newWidget)
-    setShowWidgetMenu(false)
-  }, [placeWidget])
+    
+    placeWidget(newWidget);
+    setShowWidgetMenu(false);
+  }, [placeWidget]);
   
   // Функция для удаления виджета
-  const removeWidget = useCallback((id: number) => {
-    setWidgets(widgets => widgets.filter(widget => widget.id !== id))
-    if (activeSettingsId === id) {
-      setActiveSettingsId(null)
+  const removeWidget = useCallback(async (id: number) => {
+    try {
+      // Удаляем виджет из состояния
+      setWidgets(widgets => widgets.filter(widget => widget.id !== id));
+      
+      // Удаляем виджет из хранилища
+      await boardService.removeWidget(id);
+      
+      // Закрываем настройки, если они открыты для удаляемого виджета
+      if (activeSettingsId === id) {
+        setActiveSettingsId(null);
+      }
+    } catch (error) {
+      console.error('Error removing widget:', error);
     }
-  }, [activeSettingsId])
+  }, [activeSettingsId]);
   
   // Функция для обновления виджета
-  const updateWidget = useCallback((updatedWidget: Widget) => {
-    setWidgets(prev => 
-      prev.map(widget => 
-        widget.id === updatedWidget.id ? {...updatedWidget} : widget
-      )
-    )
-  }, [])
+  const updateWidget = useCallback(async (updatedWidget: Widget) => {
+    try {
+      // Обновляем виджет в состоянии
+      setWidgets(prev => 
+        prev.map(widget => 
+          widget.id === updatedWidget.id ? {...updatedWidget, lastUpdated: Date.now()} : widget
+        )
+      );
+      
+      // Обновляем виджет в хранилище
+      await boardService.updateWidget(updatedWidget);
+    } catch (error) {
+      console.error('Error updating widget:', error);
+    }
+  }, []);
   
   // Функция для изменения размера виджета
   const handleResize = useCallback((widget: Widget, newSize: { width: number, height: number }) => {
-    console.log('Resize called with:', widget.id, newSize);
     updateWidget({
       ...widget,
-      size: newSize
-    })
-  }, [updateWidget])
+      size: newSize,
+      lastUpdated: Date.now()
+    });
+  }, [updateWidget]);
   
   // Функция для открытия настроек виджета
   const handleSettingsOpen = useCallback((id: number) => {
-    setActiveSettingsId(id)
-  }, [])
+    setActiveSettingsId(id);
+  }, []);
   
   // Функция для закрытия настроек виджета
   const handleSettingsClose = useCallback(() => {
-    setActiveSettingsId(null)
-  }, [])
+    setActiveSettingsId(null);
+  }, []);
   
   // Настройка области для сброса (drop target)
   const [, drop] = useDrop(
     () => ({
       accept: "widget",
       drop: (item: Widget, monitor: DropTargetMonitor) => {
-        const delta = monitor.getDifferenceFromInitialOffset()
+        const delta = monitor.getDifferenceFromInitialOffset();
         if (delta) {
-          const left = Math.max(0, Math.round((item.position.x + delta.x) / GRID_SIZE) * GRID_SIZE)
-          const top = Math.max(TOP_OFFSET, Math.round((item.position.y + delta.y) / GRID_SIZE) * GRID_SIZE)
-          updateWidget({ ...item, position: { x: left, y: top } })
+          const left = Math.max(0, Math.round((item.position.x + delta.x) / GRID_SIZE) * GRID_SIZE);
+          const top = Math.max(0, Math.round((item.position.y + delta.y) / GRID_SIZE) * GRID_SIZE);
+          
+          updateWidget({
+            ...item,
+            position: { x: left, y: top },
+            lastUpdated: Date.now()
+          });
         }
       },
     }),
     [updateWidget]
-  )
+  );
   
   // Применяем drop ref к доске
   useEffect(() => {
-    drop(boardRef.current)
-  }, [drop])
+    drop(boardRef.current);
+  }, [drop]);
   
   // Обработчик клика по доске для размещения нового виджета
   const handleClick = useCallback(
     (e: React.MouseEvent<HTMLDivElement>) => {
       if (draggedWidget) {
-        const boardRect = e.currentTarget.getBoundingClientRect()
-        const x = Math.round((e.clientX - boardRect.left) / GRID_SIZE) * GRID_SIZE
-        const y = Math.max(TOP_OFFSET, Math.round((e.clientY - boardRect.top) / GRID_SIZE) * GRID_SIZE)
-        placeWidget({ ...draggedWidget, position: { x, y } })
+        const boardRect = e.currentTarget.getBoundingClientRect();
+        const x = Math.round((e.clientX - boardRect.left) / GRID_SIZE) * GRID_SIZE;
+        const y = Math.round((e.clientY - boardRect.top) / GRID_SIZE) * GRID_SIZE;
+        
+        placeWidget({
+          ...draggedWidget,
+          position: { x, y },
+          lastUpdated: Date.now()
+        });
       }
     },
     [draggedWidget, placeWidget]
-  )
+  );
 
   // Функция для рендеринга содержимого виджета в зависимости от типа
   const renderWidgetContent = useCallback((widget: Widget) => {
@@ -163,19 +240,28 @@ const Board: React.FC<BoardProps> = ({
     );
   }, [updateWidget, removeWidget, isDarkMode]);
 
+  // Если данные загружаются, показываем индикатор загрузки
+  if (isLoading) {
+    return (
+      <div className="w-full h-screen flex items-center justify-center">
+        <div className="text-xl text-gray-500">Загрузка доски...</div>
+      </div>
+    );
+  }
+
   return (
-    <div className="relative w-full h-screen overflow-hidden">
+    <div className="relative w-full h-screen">
       {/* Основная доска с сеткой */}
       <div
         ref={boardRef}
-        className={`w-full h-screen overflow-hidden relative transition-colors duration-200 ${
+        className={`w-full h-screen relative transition-colors duration-200 ${
           isDarkMode ? "bg-gray-900" : "bg-gray-50"
         }`}
         style={{
           backgroundImage: `linear-gradient(${isDarkMode ? "rgba(255, 255, 255, 0.05)" : "rgba(0, 0, 0, 0.1)"} 1px, transparent 1px), 
              linear-gradient(90deg, ${isDarkMode ? "rgba(255, 255, 255, 0.05)" : "rgba(0, 0, 0, 0.1)"} 1px, transparent 1px)`,
           backgroundSize: `${GRID_SIZE}px ${GRID_SIZE}px`,
-          backgroundPosition: `0 ${TOP_OFFSET}px`,
+          backgroundPosition: `0 0`,
         }}
         onClick={handleClick}
       >
@@ -248,27 +334,17 @@ const Board: React.FC<BoardProps> = ({
         {activeSettingsId !== null && (
           <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
             <div className={`bg-white dark:bg-gray-800 rounded-lg shadow-lg p-6 max-w-md w-full ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
-              <div className="text-xl font-medium mb-4">Настройки виджета</div>
+              <h2 className="text-xl font-bold mb-4">Настройки виджета</h2>
+              
+              {/* Здесь будут отображаться настройки виджета */}
               <div className="mb-4">
-                <label className="block mb-2">Заголовок</label>
-                <input 
-                  type="text" 
-                  className="w-full px-3 py-2 border rounded-md dark:bg-gray-700 dark:border-gray-600"
-                  value={widgets.find(w => w.id === activeSettingsId)?.title || ''}
-                  onChange={(e) => {
-                    const widget = widgets.find(w => w.id === activeSettingsId)
-                    if (widget) {
-                      updateWidget({
-                        ...widget,
-                        title: e.target.value
-                      })
-                    }
-                  }}
-                />
+                {/* Содержимое настроек */}
+                <p className="text-gray-500 dark:text-gray-400">Настройки для этого виджета пока недоступны.</p>
               </div>
+              
               <div className="flex justify-end">
                 <button 
-                  className="px-4 py-2 bg-purple-600 text-white rounded-md hover:bg-purple-700"
+                  className="px-4 py-2 bg-gray-200 dark:bg-gray-700 rounded-md hover:bg-gray-300 dark:hover:bg-gray-600"
                   onClick={handleSettingsClose}
                 >
                   Закрыть
@@ -279,7 +355,7 @@ const Board: React.FC<BoardProps> = ({
         )}
       </div>
     </div>
-  )
-}
+  );
+};
 
-export default Board 
+export default Board; 

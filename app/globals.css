@@ -4,7 +4,7 @@
 
 :root {
   --foreground-rgb: 0, 0, 0;
-  --background-start-rgb: 245, 245, 245;
+  --background-start-rgb: 249, 250, 251;
   --background-end-rgb: 255, 255, 255;
   --accent-color: 168, 85, 247; /* #A855F7 */
 }
@@ -17,9 +17,15 @@
   }
 }
 
+html, body {
+  height: 100%;
+  overflow: hidden; /* Предотвращаем прокрутку на уровне html и body */
+}
+
 body {
   color: rgb(var(--foreground-rgb));
   background: rgb(var(--background-start-rgb));
+  transition: background-color 0.2s ease-in-out;
 }
 
 /* Базовые стили для кнопки добавления виджета */
@@ -32,12 +38,60 @@ body {
   display: flex;
   align-items: center;
   justify-content: center;
-  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+  box-shadow: 0 4px 12px rgba(168, 85, 247, 0.3);
   cursor: pointer;
-  transition: transform 0.2s, box-shadow 0.2s;
+  transition: all 0.2s ease-in-out;
 }
 
 .add-widget-button:hover {
   transform: translateY(-2px);
-  box-shadow: 0 6px 8px rgba(0, 0, 0, 0.15);
+  box-shadow: 0 6px 16px rgba(168, 85, 247, 0.4);
+  background-color: #9333EA;
+}
+
+/* Стили для темного режима */
+.dark .add-widget-button {
+  box-shadow: 0 4px 12px rgba(192, 132, 252, 0.4);
+}
+
+.dark .add-widget-button:hover {
+  box-shadow: 0 6px 16px rgba(192, 132, 252, 0.5);
+  background-color: #A855F7;
+}
+
+/* Анимации для элементов интерфейса */
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+.fade-in {
+  animation: fadeIn 0.3s ease-in-out;
+}
+
+/* Улучшенные стили для скроллбара (только для элементов с прокруткой, не для всей страницы) */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #D1D5DB;
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #9CA3AF;
+}
+
+.dark ::-webkit-scrollbar-thumb {
+  background: #4B5563;
+}
+
+.dark ::-webkit-scrollbar-thumb:hover {
+  background: #6B7280;
 } 

@@ -9,13 +9,14 @@ export interface Size {
 }
 
 export interface WidgetManifest {
-  id: string;           // Уникальный идентификатор типа виджета
-  name: string;         // Отображаемое имя виджета
-  description: string;  // Описание виджета
-  minSize: Size;        // Минимальный размер виджета
-  maxSize: Size;        // Максимальный размер виджета
-  defaultSize: Size;    // Размер виджета по умолчанию
-  icon?: string;        // Иконка виджета (опционально)
+  id: string;                // Уникальный идентификатор типа виджета
+  name: string;              // Отображаемое имя виджета
+  description: string;       // Описание виджета
+  minSize: Size;             // Минимальный размер виджета
+  maxSize: Size;             // Максимальный размер виджета
+  defaultSize: Size;         // Размер виджета по умолчанию
+  supportsDarkMode?: boolean; // Поддерживает ли виджет темную тему
+  icon?: string;             // Иконка виджета (опционально)
 }
 
 export interface Widget {
@@ -28,4 +29,5 @@ export interface Widget {
   title?: string;
   content?: any;
   settings?: Record<string, any>;
+  lastUpdated?: number;      // Время последнего обновления виджета
 } 

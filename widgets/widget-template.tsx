@@ -7,7 +7,7 @@
  * Он определяет общий интерфейс, манифест по умолчанию и базовую функциональность.
  */
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import type { Widget, WidgetManifest } from '@/types/Widget';
 
 /**
@@ -31,7 +31,8 @@ export const DEFAULT_WIDGET_MANIFEST: WidgetManifest = {
   description: 'Базовый шаблон виджета',
   minSize: { width: 100, height: 80 },         // Минимальный размер
   maxSize: { width: 800, height: 600 },        // Максимальный размер
-  defaultSize: { width: 240, height: 160 }     // Размер по умолчанию
+  defaultSize: { width: 240, height: 160 },    // Размер по умолчанию
+  supportsDarkMode: true                       // Поддержка темной темы
 };
 
 /**
@@ -55,7 +56,8 @@ const WidgetTemplate: React.FC<WidgetProps> = ({
       updateWidget({
         ...widget,
         minSize: DEFAULT_WIDGET_MANIFEST.minSize,
-        maxSize: DEFAULT_WIDGET_MANIFEST.maxSize
+        maxSize: DEFAULT_WIDGET_MANIFEST.maxSize,
+        lastUpdated: Date.now()
       });
     }
   }, [widget, updateWidget]);
@@ -64,34 +66,51 @@ const WidgetTemplate: React.FC<WidgetProps> = ({
    * Обработчик изменения настроек
    * Обновляет локальное состояние и вызывает функцию обновления виджета
    */
-  const handleSettingsChange = (newSettings: Record<string, any>) => {
+  const handleSettingsChange = useCallback((newSettings: Record<string, any>) => {
     const updatedSettings = { ...settings, ...newSettings };
     setSettings(updatedSettings);
     
     if (updateWidget) {
       updateWidget({
         ...widget,
-        settings: updatedSettings
+        settings: updatedSettings,
+        lastUpdated: Date.now()
       });
     }
-  };
+  }, [settings, widget, updateWidget]);
 
-  // Обработчик удаления виджета
-  const handleRemove = () => {
+  /**
+   * Обработчик изменения содержимого виджета
+   * @param newContent Новое содержимое
+   */
+  const handleContentChange = useCallback((newContent: any) => {
+    if (updateWidget) {
+      updateWidget({
+        ...widget,
+        content: { ...widget.content, ...newContent },
+        lastUpdated: Date.now()
+      });
+    }
+  }, [widget, updateWidget]);
+
+  /**
+   * Обработчик удаления виджета
+   */
+  const handleRemove = useCallback(() => {
     if (removeWidget) {
       removeWidget(widget.id);
     }
-  };
+  }, [widget.id, removeWidget]);
 
   return (
-    <div className="p-4 flex flex-col h-full">
+    <div className={`p-4 flex flex-col h-full ${isDarkMode ? 'text-white' : 'text-gray-900'} transition-colors duration-200`}>
       {/* Заголовок виджета */}
       {widget.title && (
         <div className="text-lg font-medium mb-2">{widget.title}</div>
       )}
       
       {/* Содержимое виджета */}
-      <div className="flex-1 flex items-center justify-center text-gray-400">
+      <div className={`flex-1 flex items-center justify-center ${isDarkMode ? 'text-gray-300' : 'text-gray-500'}`}>
         Это базовый шаблон виджета.
         Создайте свой виджет, расширяя этот шаблон.
       </div>
