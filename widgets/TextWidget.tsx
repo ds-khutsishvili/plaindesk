@@ -1,14 +1,19 @@
 "use client"
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import type { Widget } from '@/types/Widget';
+import { DEFAULT_MIN_SIZE, DEFAULT_MAX_SIZE } from './widget-template';
 
-export interface TextWidgetProps {
+interface TextWidgetProps {
   widget: Widget;
   updateWidget?: (widget: Widget) => void;
   removeWidget?: (id: number) => void;
   isDarkMode?: boolean;
 }
+
+// Определяем минимальный и максимальный размер для текстового виджета
+export const TEXT_WIDGET_MIN_SIZE = { width: 400, height: 200 };
+export const TEXT_WIDGET_MAX_SIZE = { width: 600, height: 400 };
 
 const TextWidget: React.FC<TextWidgetProps> = ({
   widget,
@@ -18,6 +23,17 @@ const TextWidget: React.FC<TextWidgetProps> = ({
 }) => {
   const [text, setText] = useState(widget.content?.text || 'Текстовый виджет');
   const [isEditing, setIsEditing] = useState(false);
+
+  // При первом рендеринге устанавливаем минимальный и максимальный размер
+  useEffect(() => {
+    if (updateWidget && (!widget.minSize || !widget.maxSize)) {
+      updateWidget({
+        ...widget,
+        minSize: TEXT_WIDGET_MIN_SIZE,
+        maxSize: TEXT_WIDGET_MAX_SIZE
+      });
+    }
+  }, [widget, updateWidget]);
 
   // Обработчик изменения текста
   const handleTextChange = (newText: string) => {

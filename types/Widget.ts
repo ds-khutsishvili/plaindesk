@@ -13,6 +13,8 @@ export interface Widget {
   type: string;
   position: Position;
   size: Size;
+  minSize?: Size;
+  maxSize?: Size;
   title?: string;
   content?: any;
   settings?: Record<string, any>;

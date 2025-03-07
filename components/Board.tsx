@@ -15,7 +15,7 @@ interface BoardProps {
 }
 
 const GRID_SIZE = 20
-const TOP_OFFSET = 64
+const TOP_OFFSET = 60
 
 const Board: React.FC<BoardProps> = ({
   isDarkMode = false,
@@ -35,26 +35,26 @@ const Board: React.FC<BoardProps> = ({
   // Ref для доски
   const boardRef = useRef<HTMLDivElement | null>(null)
   
-  // Функция для добавления виджета
-  const addWidget = useCallback((type: string) => {
-    const newWidget: Widget = {
-      id: Date.now(),
-      type,
-      position: { x: 0, y: 0 },
-      size: { width: 240, height: 160 },
-      title: `Виджет ${type}`,
-      settings: {}
-    }
-    setDraggedWidget(newWidget)
-    setShowWidgetMenu(false)
-  }, [])
-  
   // Функция для размещения виджета на доске
   const placeWidget = useCallback((widget: Widget) => {
     setWidgets(prev => [...prev, widget])
     setDraggedWidget(null)
   }, [])
-
+  
+  // Функция для добавления виджета
+  const addWidget = useCallback((type: string) => {
+    const newWidget: Widget = {
+      id: Date.now(),
+      type,
+      position: { x: GRID_SIZE, y: TOP_OFFSET + GRID_SIZE },
+      size: { width: 240, height: 160 },
+      title: `Виджет ${type}`,
+      settings: {}
+    }
+    placeWidget(newWidget)
+    setShowWidgetMenu(false)
+  }, [placeWidget])
+  
   // Функция для удаления виджета
   const removeWidget = useCallback((id: number) => {
     setWidgets(widgets => widgets.filter(widget => widget.id !== id))
@@ -74,6 +74,7 @@ const Board: React.FC<BoardProps> = ({
   
   // Функция для изменения размера виджета
   const handleResize = useCallback((widget: Widget, newSize: { width: number, height: number }) => {
+    console.log('Resize called with:', widget.id, newSize);
     updateWidget({
       ...widget,
       size: newSize

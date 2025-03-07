@@ -1,6 +1,6 @@
 "use client"
 
-import { useRef, useState, useEffect, ReactNode } from "react"
+import { useRef, useState, useEffect, ReactNode, useCallback } from "react"
 import { useDrag, DragSourceMonitor } from "react-dnd"
 import type { Widget } from "@/types/Widget"
 
@@ -16,8 +16,10 @@ interface WidgetContainerProps {
 }
 
 const GRID_SIZE = 20
-const MIN_WIDTH = 100
-const MIN_HEIGHT = 80
+const DEFAULT_MIN_WIDTH = 100
+const DEFAULT_MIN_HEIGHT = 80
+const DEFAULT_MAX_WIDTH = 800
+const DEFAULT_MAX_HEIGHT = 600
 
 const WidgetContainer: React.FC<WidgetContainerProps> = ({
   widget,
@@ -33,6 +35,12 @@ const WidgetContainer: React.FC<WidgetContainerProps> = ({
   const [isResizing, setIsResizing] = useState(false)
   const [startResizePos, setStartResizePos] = useState({ x: 0, y: 0 })
   const [startSize, setStartSize] = useState({ width: 0, height: 0 })
+  
+  // Определяем минимальный и максимальный размер виджета
+  const minWidth = widget.minSize?.width || DEFAULT_MIN_WIDTH
+  const minHeight = widget.minSize?.height || DEFAULT_MIN_HEIGHT
+  const maxWidth = widget.maxSize?.width || DEFAULT_MAX_WIDTH
+  const maxHeight = widget.maxSize?.height || DEFAULT_MAX_HEIGHT
   
   // Ref для кнопки перетаскивания
   const dragHandleRef = useRef<HTMLDivElement | null>(null)
@@ -67,60 +75,104 @@ const WidgetContainer: React.FC<WidgetContainerProps> = ({
     top: `${widget.position.y}px`,
     opacity: isDragging ? 0.5 : (isPreview ? 0.7 : 1),
     zIndex: isDragging ? 1000 : (isPreview ? 1000 : (isResizing ? 100 : 1)),
+    cursor: isResizing ? 'nwse-resize' : 'default',
   }
 
-  // Обработчик начала изменения размера
-  const handleResizeStart = (e: React.MouseEvent) => {
-    e.stopPropagation()
-    e.preventDefault()
-    setIsResizing(true)
-    setStartResizePos({ x: e.clientX, y: e.clientY })
-    setStartSize({ width: widget.size.width, height: widget.size.height })
-    
-    // Добавляем обработчики событий на документ
-    document.addEventListener('mousemove', handleResizeMove)
-    document.addEventListener('mouseup', handleResizeEnd)
-  }
-  
   // Обработчик движения мыши при изменении размера
   const handleResizeMove = (e: MouseEvent) => {
-    if (!isResizing) return
+    if (!isResizing) return;
     
-    const deltaX = e.clientX - startResizePos.x
-    const deltaY = e.clientY - startResizePos.y
+    const deltaX = e.clientX - startResizePos.x;
+    const deltaY = e.clientY - startResizePos.y;
     
-    // Рассчитываем новый размер с привязкой к сетке
-    const newWidth = Math.max(
-      MIN_WIDTH, 
-      Math.round((startSize.width + deltaX) / GRID_SIZE) * GRID_SIZE
-    )
-    const newHeight = Math.max(
-      MIN_HEIGHT, 
-      Math.round((startSize.height + deltaY) / GRID_SIZE) * GRID_SIZE
-    )
+    // Применяем ограничения минимального и максимального размера
+    const newWidth = Math.min(
+      maxWidth,
+      Math.max(
+        minWidth, 
+        Math.round((startSize.width + deltaX) / GRID_SIZE) * GRID_SIZE
+      )
+    );
+    
+    const newHeight = Math.min(
+      maxHeight,
+      Math.max(
+        minHeight, 
+        Math.round((startSize.height + deltaY) / GRID_SIZE) * GRID_SIZE
+      )
+    );
     
     // Вызываем колбэк для обновления размера
     if (onResize) {
-      onResize(widget, { width: newWidth, height: newHeight })
+      onResize(widget, { width: newWidth, height: newHeight });
+    } else {
+      console.warn('onResize callback is not provided for widget:', widget.id);
     }
-  }
+  };
   
   // Обработчик окончания изменения размера
   const handleResizeEnd = () => {
-    setIsResizing(false)
+    console.log('Resize end:', widget.id);
+    setIsResizing(false);
     
     // Удаляем обработчики событий с документа
-    document.removeEventListener('mousemove', handleResizeMove)
-    document.removeEventListener('mouseup', handleResizeEnd)
-  }
+    document.removeEventListener('mousemove', handleResizeMove);
+    document.removeEventListener('mouseup', handleResizeEnd);
+  };
+  
+  // Обработчик начала изменения размера
+  const handleResizeStart = (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    console.log('Resize start:', widget.id);
+    setIsResizing(true);
+    setStartResizePos({ x: e.clientX, y: e.clientY });
+    setStartSize({ width: widget.size.width, height: widget.size.height });
+    
+    // Добавляем обработчики событий для отслеживания движения мыши и отпускания кнопки
+    document.addEventListener('mousemove', handleResizeMove);
+    document.addEventListener('mouseup', handleResizeEnd);
+  };
+  
+  // Создаем функцию handleResizeMove и handleResizeEnd только один раз
+  const handleResizeMoveRef = useRef(handleResizeMove);
+  const handleResizeEndRef = useRef(handleResizeEnd);
+  
+  useEffect(() => {
+    handleResizeMoveRef.current = handleResizeMove;
+    handleResizeEndRef.current = handleResizeEnd;
+  }, [handleResizeMove, handleResizeEnd]);
+  
+  // Обертка для обработчиков событий
+  const handleResizeMoveWrapper = useCallback((e: MouseEvent) => {
+    handleResizeMoveRef.current(e);
+  }, []);
+  
+  const handleResizeEndWrapper = useCallback(() => {
+    handleResizeEndRef.current();
+  }, []);
+  
+  // Обработчик начала изменения размера с использованием обертки
+  const handleResizeStartWithWrapper = useCallback((e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    console.log('Resize start with wrapper:', widget.id);
+    setIsResizing(true);
+    setStartResizePos({ x: e.clientX, y: e.clientY });
+    setStartSize({ width: widget.size.width, height: widget.size.height });
+    
+    // Добавляем обработчики событий для отслеживания движения мыши и отпускания кнопки
+    document.addEventListener('mousemove', handleResizeMoveWrapper);
+    document.addEventListener('mouseup', handleResizeEndWrapper);
+  }, [widget, handleResizeMoveWrapper, handleResizeEndWrapper]);
   
   // Очистка обработчиков при размонтировании
   useEffect(() => {
     return () => {
-      document.removeEventListener('mousemove', handleResizeMove)
-      document.removeEventListener('mouseup', handleResizeEnd)
-    }
-  }, [isResizing])
+      document.removeEventListener('mousemove', handleResizeMoveWrapper);
+      document.removeEventListener('mouseup', handleResizeEndWrapper);
+    };
+  }, [handleResizeMoveWrapper, handleResizeEndWrapper]);
   
   // Применяем dragPreview к основному контейнеру и drag к кнопке перетаскивания
   return (
@@ -186,24 +238,24 @@ const WidgetContainer: React.FC<WidgetContainerProps> = ({
               ⚙
             </button>
           </div>
-        </>
-      )}
-      
-      {/* Элемент изменения размера (виден только при наведении) */}
-      {isHovered && !isPreview && (
-        <div 
-          className="absolute bottom-0 right-0 w-6 h-6 cursor-se-resize flex items-end justify-end"
-          onMouseDown={handleResizeStart}
-        >
-          <svg width="10" height="10" viewBox="0 0 10 10">
-            <path 
-              d="M0 10L10 10L10 0" 
+          
+          {/* Элемент для изменения размера */}
+          <div 
+            className="absolute bottom-0 right-0 w-8 h-8 cursor-nwse-resize"
+            onMouseDown={handleResizeStartWithWrapper}
+          >
+            <svg 
+              width="16" 
+              height="16" 
+              viewBox="0 0 24 24" 
               fill="none" 
-              stroke={isDarkMode ? "rgba(255,255,255,0.5)" : "rgba(0,0,0,0.3)"} 
-              strokeWidth="2"
-            />
-          </svg>
-        </div>
+              xmlns="http://www.w3.org/2000/svg"
+              className="absolute bottom-1 right-1"
+            >
+              <path d="M22 22L12 22L22 12L22 22Z" fill={isDarkMode ? "white" : "black"} fillOpacity="0.7" />
+            </svg>
+          </div>
+        </>
       )}
     </div>
   )

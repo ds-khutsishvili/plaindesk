@@ -10,6 +10,11 @@ export interface WidgetProps {
   isDarkMode?: boolean;
 }
 
+// Константы для определения минимального и максимального размера
+// Каждый виджет должен переопределить эти значения
+export const DEFAULT_MIN_SIZE = { width: 100, height: 80 };
+export const DEFAULT_MAX_SIZE = { width: 800, height: 600 };
+
 const WidgetTemplate: React.FC<WidgetProps> = ({
   widget,
   updateWidget,
@@ -17,6 +22,11 @@ const WidgetTemplate: React.FC<WidgetProps> = ({
   isDarkMode = false,
 }) => {
   const [settings, setSettings] = useState(widget.settings || {});
+
+  // Получаем минимальный и максимальный размер виджета
+  // Если они не определены в виджете, используем значения из статических свойств
+  const minSize = widget.minSize || DEFAULT_MIN_SIZE;
+  const maxSize = widget.maxSize || DEFAULT_MAX_SIZE;
 
   // Обработчик изменения настроек
   const handleSettingsChange = (newSettings: Record<string, any>) => {
@@ -38,6 +48,18 @@ const WidgetTemplate: React.FC<WidgetProps> = ({
     }
   };
 
+  // При первом рендеринге устанавливаем минимальный и максимальный размер
+  // если они еще не установлены
+  useState(() => {
+    if (!widget.minSize && updateWidget) {
+      updateWidget({
+        ...widget,
+        minSize: DEFAULT_MIN_SIZE,
+        maxSize: DEFAULT_MAX_SIZE
+      });
+    }
+  });
+
   return (
     <div
       className={`rounded-lg shadow-sm flex flex-col p-4 ${
@@ -46,6 +68,10 @@ const WidgetTemplate: React.FC<WidgetProps> = ({
       style={{
         width: `${widget.size.width}px`,
         height: `${widget.size.height}px`,
+        minWidth: `${minSize.width}px`,
+        minHeight: `${minSize.height}px`,
+        maxWidth: `${maxSize.width}px`,
+        maxHeight: `${maxSize.height}px`,
       }}
     >
       {widget.title && (
