@@ -1,0 +1,15 @@
+---
+description: system info
+globs: 
+alwaysApply: false
+---
+# Системная информация
+
+## PowerShell
+Версия: 7.5.0
+
+## Операционная система
+Windows 10 (10.0.19045)
+Платформа: Win32NT
+
+Дата проверки: 2025-03-07 
