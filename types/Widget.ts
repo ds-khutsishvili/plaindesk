@@ -30,4 +30,5 @@ export interface Widget {
   content?: any;
   settings?: Record<string, any>;
   lastUpdated?: number;      // Время последнего обновления виджета
+  isSettingsOpen?: boolean;  // Флаг открытия настроек
 } 

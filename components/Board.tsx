@@ -23,13 +23,32 @@ const loadWidgetComponent = (type: string) => {
   if (!widgetComponentsCache[type]) {
     // Преобразуем первую букву типа в верхний регистр для соответствия имени файла
     const capitalizedType = type.charAt(0).toUpperCase() + type.slice(1);
-    widgetComponentsCache[type] = dynamic(
-      () => import(`@/widgets/${capitalizedType}Widget`).catch(() => import('@/widgets/widget-template')),
-      { 
-        loading: () => <div className="h-full flex items-center justify-center text-gray-400">Загрузка...</div>,
-        ssr: false
-      }
-    );
+    
+    // Специальная обработка для виджета часов (и потенциально других виджетов с новой структурой)
+    if (type === 'clock') {
+      widgetComponentsCache[type] = dynamic(
+        () => import('@/widgets/Clock').catch(error => {
+          console.error('Ошибка при загрузке виджета часов:', error);
+          return import('@/widgets/widget-template');
+        }),
+        { 
+          loading: () => <div className="h-full flex items-center justify-center text-gray-400">Загрузка...</div>,
+          ssr: false
+        }
+      );
+    } else {
+      // Обработка виджетов со старой структурой
+      widgetComponentsCache[type] = dynamic(
+        () => import(`@/widgets/${capitalizedType}Widget`).catch(error => {
+          console.error(`Ошибка при загрузке виджета ${type}:`, error);
+          return import('@/widgets/widget-template');
+        }),
+        { 
+          loading: () => <div className="h-full flex items-center justify-center text-gray-400">Загрузка...</div>,
+          ssr: false
+        }
+      );
+    }
   }
   return widgetComponentsCache[type];
 };
@@ -42,9 +61,6 @@ const Board: React.FC<BoardProps> = ({
   
   // Состояние для отображения меню выбора виджетов
   const [showWidgetMenu, setShowWidgetMenu] = useState(false)
-  
-  // Состояние для отображения настроек виджета
-  const [activeSettingsId, setActiveSettingsId] = useState<number | null>(null)
   
   // Состояние для нового виджета, который перетаскивается
   const [draggedWidget, setDraggedWidget] = useState<Widget | null>(null)
@@ -134,15 +150,10 @@ const Board: React.FC<BoardProps> = ({
       
       // Удаляем виджет из хранилища
       await boardService.removeWidget(id);
-      
-      // Закрываем настройки, если они открыты для удаляемого виджета
-      if (activeSettingsId === id) {
-        setActiveSettingsId(null);
-      }
     } catch (error) {
       console.error('Error removing widget:', error);
     }
-  }, [activeSettingsId]);
+  }, []);
   
   // Функция для обновления виджета
   const updateWidget = useCallback(async (updatedWidget: Widget) => {
@@ -172,12 +183,28 @@ const Board: React.FC<BoardProps> = ({
   
   // Функция для открытия настроек виджета
   const handleSettingsOpen = useCallback((id: number) => {
-    setActiveSettingsId(id);
+    // Больше не устанавливаем activeSettingsId, так как модальное окно отключено
+    // setActiveSettingsId(id);
+    
+    // Обновляем виджет, устанавливая флаг isSettingsOpen
+    setWidgets(prevWidgets => 
+      prevWidgets.map(widget => 
+        widget.id === id 
+          ? { ...widget, isSettingsOpen: true } 
+          : { ...widget, isSettingsOpen: false }
+      )
+    );
   }, []);
   
   // Функция для закрытия настроек виджета
   const handleSettingsClose = useCallback(() => {
-    setActiveSettingsId(null);
+    // Больше не сбрасываем activeSettingsId, так как модальное окно отключено
+    // setActiveSettingsId(null);
+    
+    // Сбрасываем флаг isSettingsOpen для всех виджетов
+    setWidgets(prevWidgets => 
+      prevWidgets.map(widget => ({ ...widget, isSettingsOpen: false }))
+    );
   }, []);
   
   // Настройка области для сброса (drop target)
@@ -226,18 +253,32 @@ const Board: React.FC<BoardProps> = ({
 
   // Функция для рендеринга содержимого виджета в зависимости от типа
   const renderWidgetContent = useCallback((widget: Widget) => {
-    const WidgetComponent = loadWidgetComponent(widget.type);
+    console.log(`Рендеринг виджета типа: ${widget.type}`, widget);
     
-    return (
-      <Suspense fallback={<div className="h-full flex items-center justify-center text-gray-400">Загрузка...</div>}>
-        <WidgetComponent
-          widget={widget}
-          updateWidget={updateWidget}
-          removeWidget={removeWidget}
-          isDarkMode={isDarkMode}
-        />
-      </Suspense>
-    );
+    try {
+      const WidgetComponent = loadWidgetComponent(widget.type);
+      
+      // Больше не проверяем activeSettingsId, так как используем только isSettingsOpen из виджета
+      
+      return (
+        <Suspense fallback={<div className="h-full flex items-center justify-center text-gray-400">Загрузка...</div>}>
+          <WidgetComponent
+            widget={widget}
+            updateWidget={updateWidget}
+            removeWidget={removeWidget}
+            isDarkMode={isDarkMode}
+          />
+        </Suspense>
+      );
+    } catch (error) {
+      console.error(`Ошибка при рендеринге виджета типа ${widget.type}:`, error);
+      return (
+        <div className="h-full flex flex-col items-center justify-center text-red-500 p-4">
+          <div className="font-bold mb-2">Ошибка загрузки виджета</div>
+          <div className="text-sm text-center">Не удалось загрузить виджет типа "{widget.type}"</div>
+        </div>
+      );
+    }
   }, [updateWidget, removeWidget, isDarkMode]);
 
   // Если данные загружаются, показываем индикатор загрузки
@@ -330,15 +371,13 @@ const Board: React.FC<BoardProps> = ({
           </div>
         )}
         
-        {/* Модальное окно настроек виджета */}
-        {activeSettingsId !== null && (
+        {/* Модальное окно настроек виджета - отключено, так как настройки теперь отображаются в самом виджете */}
+        {/* {activeSettingsId !== null && (
           <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
             <div className={`bg-white dark:bg-gray-800 rounded-lg shadow-lg p-6 max-w-md w-full ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
               <h2 className="text-xl font-bold mb-4">Настройки виджета</h2>
               
-              {/* Здесь будут отображаться настройки виджета */}
               <div className="mb-4">
-                {/* Содержимое настроек */}
                 <p className="text-gray-500 dark:text-gray-400">Настройки для этого виджета пока недоступны.</p>
               </div>
               
@@ -352,7 +391,7 @@ const Board: React.FC<BoardProps> = ({
               </div>
             </div>
           </div>
-        )}
+        )} */}
       </div>
     </div>
   );

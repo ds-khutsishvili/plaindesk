@@ -9,7 +9,7 @@
 import { WidgetManifest } from '@/types/Widget';
 import { DEFAULT_WIDGET_MANIFEST } from './widget-template';
 import { TEXT_WIDGET_MANIFEST } from './TextWidget';
-import { CLOCK_WIDGET_MANIFEST } from './ClockWidget';
+import { CLOCK_WIDGET_MANIFEST } from './Clock/manifest';
 
 /**
  * Массив всех доступных манифестов виджетов
@@ -53,10 +53,29 @@ export async function getWidgetComponent(type: string) {
   try {
     // Преобразуем первую букву типа в верхний регистр для соответствия имени файла
     const capitalizedType = type.charAt(0).toUpperCase() + type.slice(1);
+    
+    // Специальная обработка для виджета часов
+    if (type === 'clock') {
+      console.log('Загрузка виджета часов из новой структуры директорий');
+      const module = await import('./Clock');
+      return module.default;
+    }
+    
+    // Обработка остальных виджетов
+    console.log(`Загрузка виджета типа ${type} из стандартной структуры`);
     const module = await import(`./${capitalizedType}Widget`);
     return module.default;
   } catch (error) {
     console.error(`Ошибка при загрузке виджета типа ${type}:`, error);
-    return null;
+    console.error('Детали ошибки:', error instanceof Error ? error.message : String(error));
+    
+    // В случае ошибки возвращаем базовый шаблон виджета
+    try {
+      const fallbackModule = await import('./widget-template');
+      return fallbackModule.default;
+    } catch (fallbackError) {
+      console.error('Не удалось загрузить даже базовый шаблон виджета:', fallbackError);
+      return null;
+    }
   }
-} 
+}
